@@ -10,11 +10,11 @@
     "ServerScriptService": {
       "Server": {
         "$className": "Script",
-        "$path": "src/server/server.server.lua"
+        "$path": "src/server/server.server.luau"
       },
       "Promise": {
         "$className": "ModuleScript",
-        "$path": "src/server/promise.lua"
+        "$path": "src/server/promise.luau"
       }
     },
     "StarterPlayer": {
