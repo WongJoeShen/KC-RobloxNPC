@@ -5,17 +5,19 @@ local chatService = game:GetService("Chat")
 local players = game:GetService("Players")
 local replicatedStorage = game:GetService("ReplicatedStorage")
 
-local chatRange = 10
-local cleanedBlocks = 0
-local canSpeak = true
-local blockDestroyedEvent = replicatedStorage:FindFirstChild("PartDestroyedEvent")  -- Get the event
+local chatRange = 10 -- Maximum distance for players to trigger chat
+local cleanedBlocks = 0 -- Counter for cleaned blocks
+local canSpeak = true -- Prevents spam chatting
+
+-- Get the event that signals when a block is destroyed
+local blockDestroyedEvent = replicatedStorage:FindFirstChild("PartDestroyedEvent")
 
 -- Function to make the NPC chat
 local function speak(message)
 	if canSpeak then
 		chatService:Chat(npc.HumanoidRootPart, message, Enum.ChatColor.Green)
-		canSpeak = false
-		task.delay(3, function() canSpeak = true end)
+		canSpeak = false -- Prevent immediate repeats
+		task.delay(3, function() canSpeak = true end) -- Cooldown before speaking again
 	end
 end
 
@@ -24,13 +26,14 @@ local function onBlockDestroyed()
 	cleanedBlocks += 1
 	print("Blocks cleaned:", cleanedBlocks)
 
+	-- NPC reacts based on how many blocks have been cleaned
 	if cleanedBlocks == 3 then
 		speak("What a mess")
 	elseif cleanedBlocks == 6 then
 		speak("Ok this is getting out of hand...")
 	elseif cleanedBlocks == 10 then
-		speak("Can someone PLEASE keep this place clean?!?!")
-		cleanedBlocks = 0  -- Reset counter after comment
+		speak("CAN SOMEONE KEEP THIS PLACE CLEAN?!?!")
+		cleanedBlocks = 0 -- Reset counter after comment
 	end
 end
 
@@ -47,6 +50,7 @@ local function onPlayerChatted(player, message)
 		local npcPosition = npc.HumanoidRootPart.Position
 		local distance = (npcPosition - playerPosition).Magnitude
 
+		-- Only respond if the player is close enough
 		if distance <= chatRange then
 			speak("I'm just a cleaner. If you have questions, try asking the trainer.")
 		end
