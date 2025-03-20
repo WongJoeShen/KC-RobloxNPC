@@ -1,4 +1,3 @@
--- Put this script as a direct child of the Cleaner Rig Model --
 local npc = script.Parent
 local humanoid = npc:FindFirstChild("Humanoid")
 local chatService = game:GetService("Chat")
@@ -17,7 +16,7 @@ local function speak(message)
 	if canSpeak then
 		chatService:Chat(npc.HumanoidRootPart, message, Enum.ChatColor.Green)
 		canSpeak = false -- Prevent immediate repeats
-		task.delay(3, function() canSpeak = true end) -- Cooldown before speaking again
+		task.delay(1, function() canSpeak = true end) -- Cooldown before speaking again
 	end
 end
 

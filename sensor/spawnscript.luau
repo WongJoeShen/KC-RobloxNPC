@@ -1,25 +1,40 @@
--- This script should be placed in ServerScriptService --
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Don't forget to add the RemoteEvent objects to ReplicatedStorage --
-local spawnEvent = game.ReplicatedStorage:FindFirstChild("SpawnPartEvent")
-local moveEvent = game.ReplicatedStorage:FindFirstChild("MoveNPCEvent") -- Event to signal NPC movement
+local sensor = script.Parent  -- Sensor part
+local spawnPartTemplate = ReplicatedStorage:FindFirstChild("SpawnPart")  -- Transparent part with decal
+local footsteps = {}  -- Track footsteps per player
 
--- Event listener: Executes when a player requests to spawn a part
-spawnEvent.OnServerEvent:Connect(function(player, position)
-	local main = game.ReplicatedStorage:FindFirstChild("SpawnPart")
-	if not main then return end -- Exit if the part template is missing
+local FOOTSTEP_THRESHOLD = 9  -- Number of footsteps before spawning
+local HEIGHT_OFFSET = 0.1  -- Adjust if needed to ensure it's on the ground
 
-	local npart = main:Clone() -- Create a copy of the part
-	npart.Parent = game.Workspace -- Place it in the game world
-	npart.Anchored = false -- Allow physics interactions
-	npart.CanCollide = true -- Enable collisions
-	npart.CanTouch = true -- Allow touch interactions
-	npart.Position = position -- Position the part where requested
+sensor.Touched:Connect(function(hit)
+	local character = hit.Parent
+	local player = game.Players:GetPlayerFromCharacter(character)
 
-	print("Spawned part at:", npart.Position)
+	if player and (hit.Name == "LeftFoot" or hit.Name == "RightFoot") then
+		local playerId = player.UserId
+		footsteps[playerId] = (footsteps[playerId] or 0) + 1
 
-	-- Notify NPCs to move to the spawned part
-	if moveEvent then
-		moveEvent:FireAllClients(npart.Position, npart)
+		print("Footstep detected:", hit.Name, "from", player.Name, "Count:", footsteps[playerId])
+
+		if footsteps[playerId] >= FOOTSTEP_THRESHOLD then
+			footsteps[playerId] = 0  -- Reset count
+
+			-- Spawn part behind player and rotate it
+			local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+			if humanoidRootPart and spawnPartTemplate then
+				local newPart = spawnPartTemplate:Clone()
+				newPart.Anchored = true  -- Ensure it stays in place
+				local position = humanoidRootPart.Position - (humanoidRootPart.CFrame.LookVector * 2)
+				newPart.Position = Vector3.new(position.X, sensor.Position.Y + HEIGHT_OFFSET, position.Z) -- Align to ground
+
+				-- Adjust rotation
+				local lookVector = humanoidRootPart.CFrame.LookVector
+				local rotation = CFrame.lookAt(newPart.Position, newPart.Position + lookVector) * CFrame.Angles(0, math.rad(180), 0)
+				newPart.CFrame = rotation
+
+				newPart.Parent = workspace
+			end
+		end
 	end
 end)

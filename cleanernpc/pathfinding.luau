@@ -1,37 +1,112 @@
--- Put this script inside the Humanoid of the Cleaner Rig Model --
-local bot = script.Parent
-local human = bot.Humanoid
-local replicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local ServerStorage = game:GetService("ServerStorage")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SimplePath = require(ServerStorage.SimplePath)
 
--- Get the event that signals when a part is destroyed
-local blockDestroyedEvent = replicatedStorage:FindFirstChild("PartDestroyedEvent")
+local npc = script.Parent
+local root = npc:FindFirstChild("HumanoidRootPart")
+local humanoid = npc:FindFirstChildOfClass("Humanoid")
 
-task.wait(3) -- Initial delay before the NPC starts working
+if not root or not humanoid then 
+	warn("NPC missing root or humanoid!")
+	return 
+end
 
-while true do
-	local foundBlock = false  -- Tracks if any block was found
+local SpObj = SimplePath.new(npc)
+SpObj.Visualize = true
 
-	-- Loop through all objects in the workspace
-	for _, obj in ipairs(game.Workspace:GetChildren()) do
-		if obj.Name == "SpawnPart" then
-			human:MoveTo(obj.Position) -- Move NPC to the block
-			human.MoveToFinished:Wait() -- Wait until NPC reaches the block
+local stopDistance = 2
+local footprintQueue = {} -- Store footprints in a table
+local isCleaning = false
+local isReturning = false
+local startPosition = root.Position -- Save the NPC's starting position
 
-			obj:Destroy() -- Remove the block
-			print("Destroyed SpawnPart at:", obj.Position)
+-- **🏠 Return NPC to starting position**
+local function returnToStart()
+	if isReturning or isCleaning then return end
+	isReturning = true
 
-			-- Notify the Cleaner NPC script about the destroyed block
-			if blockDestroyedEvent then
-				blockDestroyedEvent:Fire()
+	print("Returning to starting position:", startPosition)
+	local success = SpObj:Run(startPosition)
+
+	if success then
+		SpObj.Reached:Once(function()
+			print("NPC returned to starting position.")
+			isReturning = false
+		end)
+	else
+		warn("Pathfinding to start position failed!")
+		isReturning = false
+	end
+end
+
+-- **🧹 Process footprints**
+local function processFootprints()
+	if isCleaning then return end
+	isCleaning = true
+	isReturning = false -- Stop returning if new footprints appear
+
+	while next(footprintQueue) do
+		local footprints = {}
+		for footprint, _ in pairs(footprintQueue) do
+			if footprint and footprint.Parent then
+				table.insert(footprints, footprint)
+			else
+				footprintQueue[footprint] = nil
+			end
+		end
+
+		table.sort(footprints, function(a, b)
+			return (root.Position - a.Position).Magnitude < (root.Position - b.Position).Magnitude
+		end)
+
+		for _, footprint in ipairs(footprints) do
+			local targetPos = footprint.Position
+			local direction = (targetPos - root.Position).Unit
+			local adjustedPosition = targetPos - (direction * stopDistance)
+
+			print("Moving to footprint:", footprint, "Adjusted Pos:", adjustedPosition)
+
+			local success = SpObj:Run(adjustedPosition)
+			if not success then
+				warn("Pathfinding failed!")
+				footprintQueue[footprint] = nil
+				continue
 			end
 
-			foundBlock = true  -- A block was found and cleaned
-			break  -- Stop searching after cleaning one block
+			SpObj.Reached:Once(function()
+				print("Reached footprint:", footprint)
+				footprint:Destroy()
+				footprintQueue[footprint] = nil
+			end)
+
+			task.wait(1.5)
 		end
 	end
 
-	-- If no blocks were found, wait before checking again
-	if not foundBlock then
-		task.wait(1)
+	isCleaning = false
+	task.wait(3) -- Wait a bit before returning to start
+	if not next(footprintQueue) then
+		returnToStart()
 	end
 end
+
+-- **📌 Add footprint to queue**
+local function addFootprint(footprint)
+	if not footprintQueue[footprint] then
+		footprintQueue[footprint] = true
+		print("Added footprint:", footprint, "Total:", #footprintQueue)
+
+		if not isCleaning then
+			task.spawn(processFootprints)
+		end
+	end
+end
+
+-- **👣 Detect new footprints**
+workspace.ChildAdded:Connect(function(child)
+	if child:IsA("BasePart") and child.Name == "SpawnPart" then
+		print("New footprint detected:", child)
+		addFootprint(child)
+	end
+end)
