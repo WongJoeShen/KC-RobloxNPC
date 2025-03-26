@@ -68,25 +68,31 @@ local function processFootprints()
 			print("Moving to footprint:", footprint, "Adjusted Pos:", adjustedPosition)
 
 			local success = SpObj:Run(adjustedPosition)
-			if not success then
+			if success then
+				SpObj.Reached:Once(function()
+					if footprint and footprint.Parent then
+						print("Reached footprint:", footprint)
+						footprint:Destroy()
+						footprintQueue[footprint] = nil
+						ReplicatedStorage.PartDestroyedEvent:Fire() -- Fire event when a footprint is cleaned
+						print("Fired PartDestroyedEvent!")
+					end
+				end)
+			else
 				warn("Pathfinding failed!")
 				footprintQueue[footprint] = nil
-				continue
 			end
-
-			SpObj.Reached:Once(function()
-				print("Reached footprint:", footprint)
-				footprint:Destroy()
-				footprintQueue[footprint] = nil
-			end)
 
 			task.wait(1.5)
 		end
 	end
 
 	isCleaning = false
-	task.wait(3) -- Wait a bit before returning to start
-	if not next(footprintQueue) then
+
+	if next(footprintQueue) then
+		task.spawn(processFootprints) -- Immediately restart if more footprints exist
+	else
+		task.wait(3) -- Wait a bit before returning to start
 		returnToStart()
 	end
 end
@@ -95,11 +101,9 @@ end
 local function addFootprint(footprint)
 	if not footprintQueue[footprint] then
 		footprintQueue[footprint] = true
-		print("Added footprint:", footprint, "Total:", #footprintQueue)
+		print("Added footprint:", footprint, "Total:", table.maxn(footprintQueue) or 0)
 
-		if not isCleaning then
-			task.spawn(processFootprints)
-		end
+		task.spawn(processFootprints) -- Always restart processing if new footprints appear
 	end
 end
 
