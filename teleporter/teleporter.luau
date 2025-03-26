@@ -1,4 +1,3 @@
--------------------Script by Masi14YTB--------------------
 
 -- Get the TeleportService, which allows teleporting players to other games
 local TeleportService = game:GetService("TeleportService")

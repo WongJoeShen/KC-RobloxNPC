@@ -13,7 +13,7 @@ local HS = game:GetService("HttpService") -- HttpService for sending API request
 local npc = workspace:WaitForChild("Trainer") -- Find the NPC in the workspace
 local promise = require(script:WaitForChild("promise")) -- Load promise module for handling async tasks
 
-local api = "https://knowing-spark-yarn.glitch.me/" -- API endpoint for AI chatbot
+local api = "Link" -- API endpoint for AI chatbot
 
 local history = {} -- Stores conversation history for better responses
 
